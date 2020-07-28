@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title></title>
+		<meta name="viewport" content="width=800,user-scalable=no">
+		<style type="text/css">
+			#body{
+				font-size: 24px;
+				line-height: 40px;
+			}
+			[v-cloak]{
+			    display: none;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app" v-cloak>
+			<section id="body">
+				<section>
+					{{popItem.date}}
+				</section>
+				<!-- 得分 -->
+				<section id="total">
+					目前得分：<span style="color: red;">{{scoreTime - scoreLoss}}</span>
+				</section>
+				<!-- 时分 -->
+				<section>
+					时间得分：{{scoreTime}}
+				</section>
+				<!-- 扣分 -->
+				<section id="loss">
+					扣除分数：{{scoreLoss}}
+				</section>
+				<section>
+					<input type="number" name="" id="" v-model="inputLoss"  style="width: 64px;"/>
+					<button @click="lossChange">确定</button>
+				</section>
+			</section>
+		</div>
+	</body>
+</html>
+<script src="https://cdn.bootcdn.net/ajax/libs/vue/2.6.11/vue.js"></script>
+<script type="text/javascript">
+	new Vue({
+		el: '#app',
+		data: {
+			scoreLoss: 0,
+			scoreTime: 0,
+			inputLoss:0
+		},
+		mounted(){
+			this.getScore()
+			setInterval(()=>{
+				const hours = new Date().getHours()
+				//半夜可看昨天的资料，但不更新了
+				//23点以后才加分，8点才第一次加分
+				if(hours <= 23 && hours > 7){
+					this.syncStorage()
+				}
+			},1000)
+		},
+		computed:{
+			flowData(){
+				let _flowData = JSON.parse(window.localStorage.getItem('flowData'))
+				if(_flowData){
+					_flowData.pop()
+					return _flowData
+				}
+			},
+			popItem(){
+				let _flowData = JSON.parse(window.localStorage.getItem('flowData'))
+				if(_flowData){
+					return _flowData.pop()
+				}
+			},
+			isToday(){
+				return this.popItem ? this.popItem.date ==this.dateFormat('YYYY-mm-dd',new Date()) :true
+			}
+		},
+		methods: {
+			syncStorage(){
+				if(this.isToday){
+					this.setLocalStorage([...this.flowData,this.getNowItem()])
+				}else{
+					this.setLocalStorage([...this.flowData,this.popItem,this.getNowItem()])
+				}
+			},
+			//扣分事件
+			lossChange(){
+				this.scoreLoss += Number(this.inputLoss)
+				this.inputLoss = 0
+				this.setLocalStorage([...this.flowData,this.getNowItem()])
+			},
+			// 1小时加6分，10分钟无序-1，30分钟无序 - 5；一小时无序 -15
+			getScore() {
+				if(this.flowData){
+					//有今天数据
+					if(this.isToday){
+						this.scoreTime = this.popItem.scoreTime
+						this.scoreLoss = this.popItem.scoreLoss
+					}else{
+						this.setLocalStorage([...this.flowData,this.popItem,this.getNowItem()])
+					}
+				}else{
+					//第一次访问初始化
+					this.setLocalStorage([this.getNowItem()])
+				}
+			},
+			//获取新的临在对象
+			getNowItem(){
+				const hours = new Date().getHours()
+				//7点第一次执行，重置扣分
+				if(!this.isToday){
+					this.scoreLoss = 0
+				}
+				this.scoreTime = (hours - 7) * 6
+				const item = {
+					date:this.dateFormat('YYYY-mm-dd',new Date()),
+					scoreTime:this.scoreTime,
+					scoreLoss:this.scoreLoss
+				}
+				return item;
+			},
+			//设置localStorage
+			setLocalStorage(data){
+				localStorage.setItem('flowData',JSON.stringify(data))
+			},
+			//YYYY-mm-dd HH:MM表示2019-06-06 19:45
+			dateFormat(fmt, date) {
+			    let ret;
+			    const opt = {
+			        "Y+": date.getFullYear().toString(),        // 年
+			        "m+": (date.getMonth() + 1).toString(),     // 月
+			        "d+": date.getDate().toString(),            // 日
+			        "H+": date.getHours().toString(),           // 时
+			        "M+": date.getMinutes().toString(),         // 分
+			        "S+": date.getSeconds().toString()          // 秒
+			        // 有其他格式化字符需求可以继续添加，必须转化成字符串
+			    };
+			    for (let k in opt) {
+			        ret = new RegExp("(" + k + ")").exec(fmt);
+			        if (ret) {
+			            fmt = fmt.replace(ret[1], (ret[1].length == 1) ? (opt[k]) : (opt[k].padStart(ret[1].length, "0")))
+			        };
+			    };
+			    return fmt;
+			}
+
+		}
+	})
+</script>
